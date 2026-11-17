@@ -13,16 +13,19 @@ Plan-first, always, whatever the task size.
 It governs everything below. This skill only forces the `explore_then_plan` shape and adds
 the question, plan-file, and approval protocol.
 
-**Gate rule:** gates come after Phase 1, after Phase 2, and at Phase 5 (plan approval, which is
-also the launch gate). A gate is one `AskUserQuestion`, header `Gate`, question naming the
-phase just finished and the next one. Exactly two options: `Go` first, label ending in
-"(Recommended)", description one line saying what the next phase does; `Stop here` second,
-description "end the turn; the plan file keeps the state; resume with /conclave:implement <plan path>".
-`Go` → continue in the same turn. `Stop here` → end the turn; the plan file is the resumable
-state. A free-text answer (the tool's built-in `Other`) is a redirection: main applies it (edits
-the plan file, or redoes the affected phase), shows only the delta (the full plan at Phase 5),
-and asks the same gate again. Never re-ask on unchanged content. Phase 3 is its own question batch and continues into
-Phase 4 once answered. Phase 6 runs through to Phase 7 with no gate. Never skip a phase.
+**Gate rule:** the user is stopped at most twice before implementation: the Phase 3 question
+batch, when there is something to ask, and the Phase 5 plan approval, which is also the launch
+gate. Phases 1 and 2 report what they found and continue without a gate. The approval gate is one
+`AskUserQuestion`, header `Gate`, question naming the plan and the phase it launches. Exactly two
+options: `Go` first, label ending in "(Recommended)", description one line saying what
+implementation will do; `Stop here` second, description "end the turn; the plan file keeps the
+state; resume with /conclave:implement <plan path>". `Go` → continue in the same turn.
+`Stop here` → end the turn; the plan file is the resumable state. A free-text answer (the tool's
+built-in `Other`) is a redirection: main applies it (edits the plan file, or redoes the affected
+phase), shows the full revised plan, and asks the approval gate again. Never re-ask on unchanged
+content. A free-text answer in the Phase 3 batch that changes the task is a redirection too: main
+redoes the affected phase before planning. Phase 6 runs through to Phase 7 with no gate. Never
+skip a phase.
 
 **Role rule:** the main session plans, briefs, triages, integrates and verifies. It never reads
 repository files itself (discovery goes through `scout`) and never edits them itself
@@ -40,7 +43,7 @@ first if the plan was never approved; URL → fetch it (`gh` for GitHub); otherw
 ## Phase 1 - Understand
 
 Restate outcome, acceptance, non-goals in your own words. List information gaps. Ask nothing yet.
-End with the gate.
+Continue to Phase 2 without a gate.
 
 ## Phase 2 - Explore
 
@@ -49,13 +52,14 @@ docs, specs, tests; memory is already in context). Main issues no Read, Glob, Gr
 repository paths. Close every gap from the scout reports; a report that leaves a gap gets a
 follow-up message to that scout, not a direct read. Declare main-owned versus scout-owned
 scopes before launching, launch independent scouts in one message, collect every report
-before comparing across scopes. End with the gate.
+before comparing across scopes. Continue to Phase 3 without a gate.
 
 ## Phase 3 - Questions
 
 Ask only what the repo, docs, specs, and memory cannot answer AND whose answer changes the
-plan. One batch per turn via `AskUserQuestion`, as many as
-the gap needs, each with a recommended default. No gaps → say so and continue. Otherwise the
+plan. One batch via `AskUserQuestion`, at most 4 questions, the ones whose answers change
+the plan most, each with a recommended default. Gaps beyond those go into the plan as stated
+assumptions for the user to correct at approval. No gaps → say so and continue. Otherwise the
 batch's answers open Phase 4 in the same turn.
 
 ## Phase 4 - Plan
@@ -66,8 +70,9 @@ Non-goals, Assumptions, Steps with a verify check each, Acceptance, Rollback. Ev
 heading reads `### Step N — <title> (<role>, owns: <file list>, after: <Step M, ...|none>)`.
 `owns` is mandatory on every code-writing step (its brief creates or edits files; verify-only,
 report-only and user-action steps are not code-writing); `owns`/`after` feed
-`dependency-analyzer` in Phase 6. A new gap or incoherence found while planning → one more
-Phase 3 round before presenting.
+`dependency-analyzer` in Phase 6. A new gap or incoherence found while planning is closed by a
+bounded read where possible; otherwise it goes into the plan as a stated assumption or an open
+question for the user to correct at approval. There is no second question batch.
 
 ## Phase 5 - Approval
 
