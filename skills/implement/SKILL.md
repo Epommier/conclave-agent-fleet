@@ -32,7 +32,8 @@ repository files itself for bounded lookups (a file it can name, a handful of re
 search) and sends broad or multi-surface discovery to `scout`. It never edits repository files
 itself (implementation goes through `mech-executor`, `executor` or `security-executor`); main
 writes only the plan file and memory, and issues no mutating Bash.
-`scout` for discovery, main-session Plan synthesis, `plan-verifier` for readiness.
+`scout` for broad discovery, main-session Plan synthesis, `plan-verifier` for readiness only when
+a risk trigger from the orchestration guidance applies.
 
 ## Input
 
@@ -73,7 +74,9 @@ heading reads `### Step N — <title> (<role>, owns: <file list>, after: <Step M
 report-only and user-action steps are not code-writing); `owns`/`after` feed
 `dependency-analyzer` in Phase 6. A new gap or incoherence found while planning is closed by a
 bounded read where possible; otherwise it goes into the plan as a stated assumption or an open
-question for the user to correct at approval. There is no second question batch.
+question for the user to correct at approval. There is no second question batch. When a risk
+trigger from the orchestration guidance applies, the plan goes through a fresh `plan-verifier`
+before it is presented; otherwise it is presented directly.
 
 ## Phase 5 - Approval
 

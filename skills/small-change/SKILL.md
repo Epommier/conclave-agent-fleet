@@ -1,13 +1,13 @@
 ---
 name: small-change
-description: Apply one small, localised, already-known change fast - an investigate report, a short change description, or a GitHub issue that names the change. One executor, one verifier, no plan file. Use only when the user invokes /conclave:small-change.
+description: Apply one small, localised, already-known change fast - an investigate report, a short change description, or a GitHub issue that names the change. One executor, verification by main, no plan file. Use only when the user invokes /conclave:small-change.
 disable-model-invocation: true
 argument-hint: <investigate report path | change description | GitHub issue URL>
 ---
 
 # small-change
 
-One known, localised change: one executor, one fresh verifier, no plan file. Anything bigger
+One known, localised change: one executor, verification by main, no plan file. Anything bigger
 is handed off to `/conclave:implement`.
 
 ## Input
@@ -46,11 +46,12 @@ locating files the input does not name goes through `scout`.
 6. No refactor beyond the change. Any unavoidable side change is named separately.
 Anything else is `/conclave:implement` work.
 
-**Roles:** main classifies, sizes, briefs, triages, reports. `scout`: at most one call, only
+**Roles:** main classifies, sizes, briefs, verifies, triages, reports. `scout`: at most one call, only
 when the input is free text that names no files. `mech-executor` when the change is fully
 specified (an investigate report's Quick fix qualifies), `executor` when local judgment is
-needed. Never `security-executor`: security work fails rule 1. `verifier`: always, fresh,
-after the executor.
+needed. Never `security-executor`: security work fails rule 1. `verifier`: only when the user
+asked for independent review, fresh, after the executor; an eligible change carries no other risk
+trigger (rule 1).
 
 **Turn rule:** single turn by default.
 
@@ -92,8 +93,15 @@ learned, point to `/conclave:implement`. No escalation.
 
 ## Step 6 - Verify
 
-Fresh `verifier` with the exact claim (the report's acceptance or the user's stated
-acceptance), the reproduction command, and the diff.
+Main runs the verify command and, when a reproduction exists, the regression test, and records
+the exit codes.
+- Both pass → report.
+- A failure → one fix round (it counts as an executor attempt), then one re-run; still failing →
+  stop and report.
+
+When the user asked for independent review, a fresh `verifier` replaces main's run: give it the
+exact claim (the report's acceptance or the user's stated acceptance), the reproduction command,
+and the diff.
 - `CONFIRMED` → report.
 - `REFUTED` → one fix round (it counts as an executor attempt), then one re-verification;
   still not `CONFIRMED` → stop and report.
@@ -104,6 +112,6 @@ acceptance), the reproduction command, and the diff.
 One table: change → files. Then a `Verification` section with exactly these facts:
 - the reproduction command failed before the fix, with its exit code;
 - the same command passed after the fix, with its exit code;
-- the verifier verdict.
+- who verified: main's run, or the verifier's verdict when one ran.
 Wording is factual: no "should", "probably", "seems". Then short lists: side changes named
 separately, deferred items, external actions not taken.
