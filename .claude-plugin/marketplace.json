@@ -1,0 +1,11 @@
+{
+  "name": "conclave-agent-fleet",
+  "owner": { "name": "Etienne Pommier" },
+  "plugins": [
+    {
+      "name": "conclave",
+      "source": "./",
+      "description": "Plan-first orchestration for Claude Code: role agents, the orchestration guidance, and the brainstorm, implement, small-change and investigate skills."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PLUGIN_ROOT}/guidance/THINKING.md\"; [ -r \"$f\" ] || exit 0; printf '%s\\n' 'conclave plugin guidance' \"Before any Agent call outside a /conclave:implement, /conclave:brainstorm, /conclave:investigate or /conclave:small-change run, read ${CLAUDE_PLUGIN_ROOT}/guidance/CLAUDE-ORCHESTRATION.md and follow it to the letter.\" \"The roles named in that file and in the conclave skills (scout, researcher, diagnostician, dependency-analyzer, plan-verifier, security-reviewer, mech-executor, executor, security-executor, verifier) are this plugin's agents: pass conclave:<role> as the Agent tool's subagent_type. Explore is built in and keeps its bare name.\" ''; cat \"$f\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "^conclave:",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-context.sh\" \"${CLAUDE_PLUGIN_ROOT}/guidance/THINKING.md\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
