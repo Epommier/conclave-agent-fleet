@@ -27,11 +27,11 @@ content. A free-text answer in the Phase 3 batch that changes the task is a redi
 redoes the affected phase before planning. Phase 6 runs through to Phase 7 with no gate. Never
 skip a phase.
 
-**Role rule:** the main session plans, briefs, triages, integrates and verifies. It never reads
-repository files itself (discovery goes through `scout`) and never edits them itself
-(implementation goes through `mech-executor`, `executor` or `security-executor`). Main reads
-only scout reports, agent results, the plan file, and files the user pasted; main writes only
-the plan file and memory; main issues no mutating Bash.
+**Role rule:** the main session plans, briefs, triages, integrates and verifies. It reads
+repository files itself for bounded lookups (a file it can name, a handful of related files, one
+search) and sends broad or multi-surface discovery to `scout`. It never edits repository files
+itself (implementation goes through `mech-executor`, `executor` or `security-executor`); main
+writes only the plan file and memory, and issues no mutating Bash.
 `scout` for discovery, main-session Plan synthesis, `plan-verifier` for readiness.
 
 ## Input
@@ -47,12 +47,13 @@ Continue to Phase 2 without a gate.
 
 ## Phase 2 - Explore
 
-Exploration is one or more `scout` calls with disjoint read scopes (repo,
-docs, specs, tests; memory is already in context). Main issues no Read, Glob, Grep or Bash on
-repository paths. Close every gap from the scout reports; a report that leaves a gap gets a
-follow-up message to that scout, not a direct read. Declare main-owned versus scout-owned
-scopes before launching, launch independent scouts in one message, collect every report
-before comparing across scopes. Continue to Phase 3 without a gate.
+Close the information gaps. Main reads directly when the lookup is bounded. A broad sweep, or
+several independent surfaces, goes to one or more `scout` calls with disjoint read scopes (repo,
+docs, specs, tests; memory is already in context). Before launching scouts, declare main-owned
+versus scout-owned scopes, and do not read a scope a running scout owns; launch independent
+scouts in one message and collect every report before comparing across scopes. A report that
+leaves a gap gets a follow-up message to that scout, or a direct read when the gap is a bounded
+lookup. Continue to Phase 3 without a gate.
 
 ## Phase 3 - Questions
 

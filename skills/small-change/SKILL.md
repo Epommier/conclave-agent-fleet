@@ -30,9 +30,10 @@ Expand the argument once, yourself:
   writes outside the scratchpad directory requires `AskUserQuestion` first.
 - The argument is never placed inside a `!` command.
 
-**Role rule:** main reads only the injected input, agent reports, and plan files under
-`~/.claude/plans/`. Main never reads or edits repository files; discovery goes through
-`scout`, edits through the executor.
+**Role rule:** main reads the injected input, agent reports, plan files under
+`~/.claude/plans/`, and the repository files the change names, as a bounded lookup to confirm the
+files and the edit. Main never edits repository files: edits go through the executor, and
+locating files the input does not name goes through `scout`.
 
 **Eligibility rule.** A change is small-change-eligible when every line holds:
 1. No independent-review trigger from `CLAUDE-ORCHESTRATION.md`: security/trust, destructive or
