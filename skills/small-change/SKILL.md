@@ -36,9 +36,9 @@ files and the edit. Main never edits repository files: edits go through the exec
 locating files the input does not name goes through `scout`.
 
 **Eligibility rule.** A change is small-change-eligible when every line holds:
-1. No independent-review trigger from `CLAUDE-ORCHESTRATION.md`: security/trust, destructive or
-   irreversible or external mutation, data/schema/serialization/migration, release, material
-   cross-component acceptance.
+1. No independent-review trigger from `CLAUDE-ORCHESTRATION.md` other than an explicit request
+   for independent review: security/trust, destructive or irreversible or external mutation,
+   data/schema/serialization/migration, release, material cross-component acceptance.
 2. At most 3 source files edited. Test files do not count.
 3. No new dependency.
 4. No public API, schema, or contract change.
