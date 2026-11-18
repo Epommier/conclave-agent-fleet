@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Conclave">
+<title>Conclave</title>
+<defs><linearGradient id="g" x1="22" y1="0" x2="234" y2="0" gradientUnits="userSpaceOnUse">
+ <stop offset=".10" stop-color="#E04A5F"/><stop offset=".36" stop-color="#7C3F8C"/>
+ <stop offset=".66" stop-color="#2A8F9E"/><stop offset=".91" stop-color="#1E7BB8"/></linearGradient></defs>
+<circle cx="128" cy="128" r="110" fill="none" stroke="url(#g)" stroke-width="18"/>
+<g transform="translate(128.0 62.0)"><path d="M19.1 11.0L0.0 22.0L-19.1 11.0L-19.1 -11.0L-0.0 -22.0L19.1 -11.0Z" fill="#7C3F8C"/></g><g transform="translate(179.6 86.8)"><path d="M19.1 11.0L0.0 22.0L-19.1 11.0L-19.1 -11.0L-0.0 -22.0L19.1 -11.0Z" fill="#7C3F8C"/></g><g transform="translate(192.3 142.7)"><path d="M19.1 11.0L0.0 22.0L-19.1 11.0L-19.1 -11.0L-0.0 -22.0L19.1 -11.0Z" fill="#2A8F9E"/></g><g transform="translate(156.6 187.5)"><path d="M19.1 11.0L0.0 22.0L-19.1 11.0L-19.1 -11.0L-0.0 -22.0L19.1 -11.0Z" fill="#2A8F9E"/></g><g transform="translate(99.4 187.5)"><path d="M19.1 11.0L0.0 22.0L-19.1 11.0L-19.1 -11.0L-0.0 -22.0L19.1 -11.0Z" fill="#1E7BB8"/></g><g transform="translate(63.7 142.7)"><path d="M19.1 11.0L0.0 22.0L-19.1 11.0L-19.1 -11.0L-0.0 -22.0L19.1 -11.0Z" fill="#1E7BB8"/></g><g transform="translate(76.4 86.8)"><path d="M19.1 11.0L0.0 22.0L-19.1 11.0L-19.1 -11.0L-0.0 -22.0L19.1 -11.0Z" fill="#1E7BB8"/></g>
+<path fill="#E04A5F" transform="translate(128 128)" d="M0 -40Q10.4 -10.4 40 0Q10.4 10.4 0 40Q-10.4 10.4 -40 0Q-10.4 -10.4 0 -40Z"/>
+</svg>

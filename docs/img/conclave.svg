@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Conclave">
+<title>Conclave</title>
+<defs><linearGradient id="g" x1="22" y1="0" x2="234" y2="0" gradientUnits="userSpaceOnUse">
+ <stop offset=".10" stop-color="#E04A5F"/><stop offset=".36" stop-color="#7C3F8C"/>
+ <stop offset=".66" stop-color="#2A8F9E"/><stop offset=".91" stop-color="#1E7BB8"/></linearGradient></defs>
+<circle cx="128" cy="128" r="112" fill="none" stroke="url(#g)" stroke-width="9"/>
+
+<g stroke-width="4" stroke-linecap="round"><line x1="128" y1="128" x2="128.0" y2="54.0" stroke="#7C3F8C"/><line x1="128" y1="128" x2="185.9" y2="81.9" stroke="#7C3F8C"/><line x1="128" y1="128" x2="200.1" y2="144.5" stroke="#2A8F9E"/><line x1="128" y1="128" x2="160.1" y2="194.7" stroke="#2A8F9E"/><line x1="128" y1="128" x2="95.9" y2="194.7" stroke="#1E7BB8"/><line x1="128" y1="128" x2="55.9" y2="144.5" stroke="#1E7BB8"/><line x1="128" y1="128" x2="70.1" y2="81.9" stroke="#1E7BB8"/></g>
+<g transform="translate(128.0 54.0)"><path d="M12.1 7.0L0.0 14.0L-12.1 7.0L-12.1 -7.0L-0.0 -14.0L12.1 -7.0Z" fill="#7C3F8C"/><circle r="4.5" fill="#FFFFFF"/></g><g transform="translate(185.9 81.9)"><path d="M12.1 7.0L0.0 14.0L-12.1 7.0L-12.1 -7.0L-0.0 -14.0L12.1 -7.0Z" fill="#7C3F8C"/><circle r="4.5" fill="#FFFFFF"/></g><g transform="translate(200.1 144.5)"><path d="M12.1 7.0L0.0 14.0L-12.1 7.0L-12.1 -7.0L-0.0 -14.0L12.1 -7.0Z" fill="#2A8F9E"/><circle r="4.5" fill="#FFFFFF"/></g><g transform="translate(160.1 194.7)"><path d="M12.1 7.0L0.0 14.0L-12.1 7.0L-12.1 -7.0L-0.0 -14.0L12.1 -7.0Z" fill="#2A8F9E"/><circle r="4.5" fill="#FFFFFF"/></g><g transform="translate(95.9 194.7)"><path d="M12.1 7.0L0.0 14.0L-12.1 7.0L-12.1 -7.0L-0.0 -14.0L12.1 -7.0Z" fill="#1E7BB8"/><circle r="4.5" fill="#FFFFFF"/></g><g transform="translate(55.9 144.5)"><path d="M12.1 7.0L0.0 14.0L-12.1 7.0L-12.1 -7.0L-0.0 -14.0L12.1 -7.0Z" fill="#1E7BB8"/><circle r="4.5" fill="#FFFFFF"/></g><g transform="translate(70.1 81.9)"><path d="M12.1 7.0L0.0 14.0L-12.1 7.0L-12.1 -7.0L-0.0 -14.0L12.1 -7.0Z" fill="#1E7BB8"/><circle r="4.5" fill="#FFFFFF"/></g>
+<path fill="#E04A5F" transform="translate(128 128)" d="M0 -22Q5.720000000000001 -5.720000000000001 22 0Q5.720000000000001 5.720000000000001 0 22Q-5.720000000000001 5.720000000000001 -22 0Q-5.720000000000001 -5.720000000000001 0 -22Z"/>
+</svg>
