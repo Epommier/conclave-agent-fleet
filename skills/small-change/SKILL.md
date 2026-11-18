@@ -100,8 +100,8 @@ the exit codes.
   stop and report.
 
 When the user asked for independent review, a fresh `verifier` replaces main's run: give it the
-exact claim (the report's acceptance or the user's stated acceptance), the reproduction command,
-and the diff.
+exact claim (the report's acceptance or the user's stated acceptance), the reproduction command
+when one exists, and the diff.
 - `CONFIRMED` → report.
 - `REFUTED` → one fix round (it counts as an executor attempt), then one re-verification;
   still not `CONFIRMED` → stop and report.
@@ -110,8 +110,9 @@ and the diff.
 ## Step 7 - Report
 
 One table: change → files. Then a `Verification` section with exactly these facts:
-- the reproduction command failed before the fix, with its exit code;
-- the same command passed after the fix, with its exit code;
+- the verify command, with its exit code;
+- when a reproduction exists: the reproduction command failed before the fix and passed after
+  it, with both exit codes;
 - who verified: main's run, or the verifier's verdict when one ran.
 Wording is factual: no "should", "probably", "seems". Then short lists: side changes named
 separately, deferred items, external actions not taken.
