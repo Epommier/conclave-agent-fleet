@@ -99,3 +99,5 @@ If the same agents, skills and guidance already live in `~/.claude`, they keep w
 - in `~/.claude/CLAUDE.md`, the line that points to it and the Thinking system section.
 
 Author: Etienne Pommier
+
+License: MIT, see `LICENSE`.
