@@ -1,0 +1,2 @@
+# Benchmark runner for the eval harness. Recreate: uv venv eval/.venv && uv pip install --python eval/.venv/bin/python -r eval/requirements.txt
+harbor==0.26.0
