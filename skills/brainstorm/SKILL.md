@@ -138,7 +138,7 @@ Per round: question → answer → consequence for the idea (including any deep-
 | name | kind | what it covers | gap vs idea | source | date |
 
 ## Repo findings
-(Only when scouted.) Related code, docs, tests with file:line. Constraints found.
+(Only when the repo was consulted.) Related code, docs, tests with file:line. Constraints found.
 
 ## Options
 2–4. Each: description, what it reuses, tradeoffs, cost band (S | M | L), risks.
