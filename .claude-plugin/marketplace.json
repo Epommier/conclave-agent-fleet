@@ -1,6 +1,7 @@
 {
   "name": "conclave-agent-fleet",
   "owner": { "name": "Etienne Pommier" },
+  "description": "Marketplace for the conclave plugin: plan-first orchestration for Claude Code with role agents and skills.",
   "plugins": [
     {
       "name": "conclave",

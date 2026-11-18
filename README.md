@@ -27,7 +27,7 @@ Dispatched as `conclave:<name>`.
 |---|---|
 | `/conclave:brainstorm` | Refine an idea through research-and-question rounds into a report with options and a Build/Adopt/Don't recommendation. |
 | `/conclave:implement` | Run a task plan-first, from understanding through an approval gate to implementation and verification. |
-| `/conclave:small-change` | Apply one small, already-known change with one executor and one verifier. |
+| `/conclave:small-change` | Apply one small, already-known change with one executor; main verifies, and a verifier runs only on request. |
 | `/conclave:investigate` | Turn a stack trace, bug report or failing test into a diagnostic report with a root cause and a proposed fix. |
 
 ### Guidance
@@ -99,3 +99,5 @@ If the same agents, skills and guidance already live in `~/.claude`, they keep w
 - in `~/.claude/CLAUDE.md`, the line that points to it and the Thinking system section.
 
 Author: Etienne Pommier
+
+License: MIT, see `LICENSE`.

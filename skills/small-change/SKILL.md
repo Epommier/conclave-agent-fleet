@@ -1,13 +1,13 @@
 ---
 name: small-change
-description: Apply one small, localised, already-known change fast - an investigate report, a short change description, or a GitHub issue that names the change. One executor, one verifier, no plan file. Use only when the user invokes /conclave:small-change.
+description: Apply one small, localised, already-known change fast - an investigate report, a short change description, or a GitHub issue that names the change. One executor, verification by main, no plan file. Use only when the user invokes /conclave:small-change.
 disable-model-invocation: true
 argument-hint: <investigate report path | change description | GitHub issue URL>
 ---
 
 # small-change
 
-One known, localised change: one executor, one fresh verifier, no plan file. Anything bigger
+One known, localised change: one executor, verification by main, no plan file. Anything bigger
 is handed off to `/conclave:implement`.
 
 ## Input
@@ -30,14 +30,15 @@ Expand the argument once, yourself:
   writes outside the scratchpad directory requires `AskUserQuestion` first.
 - The argument is never placed inside a `!` command.
 
-**Role rule:** main reads only the injected input, agent reports, and plan files under
-`~/.claude/plans/`. Main never reads or edits repository files; discovery goes through
-`scout`, edits through the executor.
+**Role rule:** main reads the injected input, agent reports, plan files under
+`~/.claude/plans/`, and the repository files the change names, as a bounded lookup to confirm the
+files and the edit. Main never edits repository files: edits go through the executor, and
+locating files the input does not name goes through `scout`.
 
 **Eligibility rule.** A change is small-change-eligible when every line holds:
-1. No independent-review trigger from `CLAUDE-ORCHESTRATION.md`: security/trust, destructive or
-   irreversible or external mutation, data/schema/serialization/migration, release, material
-   cross-component acceptance.
+1. No independent-review trigger from `CLAUDE-ORCHESTRATION.md` other than an explicit request
+   for independent review: security/trust, destructive or irreversible or external mutation,
+   data/schema/serialization/migration, release, material cross-component acceptance.
 2. At most 3 source files edited. Test files do not count.
 3. No new dependency.
 4. No public API, schema, or contract change.
@@ -45,11 +46,12 @@ Expand the argument once, yourself:
 6. No refactor beyond the change. Any unavoidable side change is named separately.
 Anything else is `/conclave:implement` work.
 
-**Roles:** main classifies, sizes, briefs, triages, reports. `scout`: at most one call, only
+**Roles:** main classifies, sizes, briefs, verifies, triages, reports. `scout`: at most one call, only
 when the input is free text that names no files. `mech-executor` when the change is fully
 specified (an investigate report's Quick fix qualifies), `executor` when local judgment is
-needed. Never `security-executor`: security work fails rule 1. `verifier`: always, fresh,
-after the executor.
+needed. Never `security-executor`: security work fails rule 1. `verifier`: only when the user
+asked for independent review, fresh, after the executor; an eligible change carries no other risk
+trigger (rule 1).
 
 **Turn rule:** single turn by default.
 
@@ -91,8 +93,15 @@ learned, point to `/conclave:implement`. No escalation.
 
 ## Step 6 - Verify
 
-Fresh `verifier` with the exact claim (the report's acceptance or the user's stated
-acceptance), the reproduction command, and the diff.
+Main runs the verify command and, when a reproduction exists, the regression test, and records
+the exit codes.
+- Both pass → report.
+- A failure → one fix round (it counts as an executor attempt), then one re-run; still failing →
+  stop and report.
+
+When the user asked for independent review, a fresh `verifier` replaces main's run: give it the
+exact claim (the report's acceptance or the user's stated acceptance), the reproduction command
+when one exists, and the diff.
 - `CONFIRMED` → report.
 - `REFUTED` → one fix round (it counts as an executor attempt), then one re-verification;
   still not `CONFIRMED` → stop and report.
@@ -101,8 +110,9 @@ acceptance), the reproduction command, and the diff.
 ## Step 7 - Report
 
 One table: change → files. Then a `Verification` section with exactly these facts:
-- the reproduction command failed before the fix, with its exit code;
-- the same command passed after the fix, with its exit code;
-- the verifier verdict.
+- the verify command, with its exit code;
+- when a reproduction exists: the reproduction command failed before the fix and passed after
+  it, with both exit codes;
+- who verified: main's run, or the verifier's verdict when one ran.
 Wording is factual: no "should", "probably", "seems". Then short lists: side changes named
 separately, deferred items, external actions not taken.

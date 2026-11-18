@@ -29,14 +29,15 @@ Expand the argument once, yourself:
   writes outside the scratchpad directory requires `AskUserQuestion` first.
 - The argument is never placed inside a `!` command.
 
-**Role rule:** main reads only the injected input, agent reports, and plan files under
-`~/.claude/plans/`. Main never reads or edits repository files; discovery, reproduction and
-probes go through `diagnostician`.
+**Role rule:** main reads the injected input, agent reports, plan files under
+`~/.claude/plans/`, and repository files for bounded lookups (the code around a trace, a file a
+finding points to). Main never edits repository files; reproduction, tracing and probes that
+need commands run go through `diagnostician`.
 
 **Eligibility rule.** A change is small-change-eligible when every line holds:
-1. No independent-review trigger from `CLAUDE-ORCHESTRATION.md`: security/trust, destructive or
-   irreversible or external mutation, data/schema/serialization/migration, release, material
-   cross-component acceptance.
+1. No independent-review trigger from `CLAUDE-ORCHESTRATION.md` other than an explicit request
+   for independent review: security/trust, destructive or irreversible or external mutation,
+   data/schema/serialization/migration, release, material cross-component acceptance.
 2. At most 3 source files edited. Test files do not count.
 3. No new dependency.
 4. No public API, schema, or contract change.
