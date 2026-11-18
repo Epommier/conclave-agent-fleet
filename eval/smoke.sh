@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # Smoke test: one unattended /conclave:implement run on a throwaway repo, with
 # eval/approver.py answering AskUserQuestion through a PreToolUse hook.
-# Why the flags (measured on Claude Code 2.1.326):
+# Why the flags (measured on Claude Code 2.1.327):
 # - A hook alone is not enough: -p only offers AskUserQuestion when a permission host
 #   channel is attached (--input-format stream-json --permission-prompt-tool stdio).
 # - With that channel the hook answers, and --permission-mode dontAsk denies anything
 #   off the allow list, so nothing waits on the absent host after stdin closes.
-# - Writes under ~/.claude/plans are a protected path (no rule/--add-dir/hook helps);
-#   the skill shows its plan inline, so that denial is expected.
-# - Any folder named .claude is write-protected in unattended runs (measured), so the
-#   prompt tells the skill to show its plan inline and go on to the gate. Smoke-only.
+# - Any folder named .claude is write-protected in unattended runs; no allow rule,
+#   --add-dir or permitting hook helps, so eval/redirect_plans.py rewrites
+#   ~/.claude/plans/<name>.md into $RUN_DIR/plans.
 # SPENDS REAL MONEY: up to about $BUDGET dollars (default 3) of API usage.
 # Run: eval/smoke.sh   (env overrides: MODEL=sonnet BUDGET=3)
 set -euo pipefail
@@ -22,6 +21,7 @@ PLANS="$HOME/.claude/plans"
 echo "RUN_DIR=$RUN_DIR"
 
 mkdir "$RUN_DIR/repo"
+mkdir -m 700 "$RUN_DIR/plans"
 cd "$RUN_DIR/repo"
 git init -q
 cat > greet.py <<'EOF'
@@ -45,12 +45,17 @@ import json, sys
 run_dir, plugin_dir = sys.argv[1:]
 cmd = (f"CONCLAVE_EVAL=1 CONCLAVE_APPROVER_LOG='{run_dir}/approver.jsonl' "
        f"python3 '{plugin_dir}/eval/approver.py'")
+redirect = (f"CONCLAVE_EVAL=1 CONCLAVE_PLANS_DIR='{run_dir}/plans' "
+            f"CONCLAVE_REDIRECT_LOG='{run_dir}/redirect.jsonl' "
+            f"python3 -I '{plugin_dir}/eval/redirect_plans.py'")
 print(json.dumps({"hooks": {"PreToolUse": [{"matcher": "AskUserQuestion",
-      "hooks": [{"type": "command", "command": cmd, "timeout": 30}]}]}}))
+      "hooks": [{"type": "command", "command": cmd, "timeout": 30}]},
+      {"matcher": "Write|Edit|Read",
+      "hooks": [{"type": "command", "command": redirect, "timeout": 10}]}]}}))
 EOF
 )"
 
-PROMPT="/conclave:implement In greet.py, change greet() so that it returns the greeting with a comma and an exclamation mark, for example 'Hello, Ada!'. Keep the change to that one function; no tests or other files are needed. If the plan file cannot be saved because its folder is write-protected, show the plan inline and continue to the approval gate as usual."
+PROMPT="/conclave:implement In greet.py, change greet() so that it returns the greeting with a comma and an exclamation mark, for example 'Hello, Ada!'. Keep the change to that one function; no tests or other files are needed."
 MSG="$(python3 -c 'import json, sys; print(json.dumps({"type": "user", "message": {"role": "user", "content": sys.argv[1]}}))' "$PROMPT")"
 
 set +e
@@ -88,12 +93,14 @@ print("permission_denials:")
 for d in result.get("permission_denials") or []:
     inp = d.get("tool_input") or {}
     print(f"  {d.get('tool_name')} {inp.get('file_path') or inp.get('command') or ''}")
-print("note: a denied Write under ~/.claude/plans is expected (protected path)")
 sys.exit(1 if result.get("is_error") else 0)
 EOF
 
 echo "--- approver log"
 cat "$RUN_DIR/approver.jsonl" 2>/dev/null || echo "(no approver log)"
+
+echo "--- redirect log"
+cat "$RUN_DIR/redirect.jsonl" 2>/dev/null || echo "(no redirect log)"
 
 echo "--- new files in $PLANS"
 ls -1 "$PLANS" 2>/dev/null | sort | comm -13 "$RUN_DIR/plans_before.txt" - || true
@@ -121,6 +128,12 @@ if ! git diff --quiet HEAD -- greet.py || ! git diff --quiet "$BASE" HEAD -- gre
   EDITED=0
 fi
 check file_edited "$EDITED"
+
+PLAN_SAVED=1
+for f in "$RUN_DIR/plans"/*.md; do
+  if [ -f "$f" ] && [ ! -L "$f" ]; then PLAN_SAVED=0; fi
+done
+check plan_saved "$PLAN_SAVED"
 check run_ok "$RUN_OK"
 
 exit "$FAILED"
