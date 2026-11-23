@@ -1,0 +1,279 @@
+{
+  "version": "2026-05-v1",
+  "dataset": {
+    "name": "swe-rebench/swe-rebench-leaderboard",
+    "downloaded": "2026-11-18",
+    "task_count": 860
+  },
+  "month": "2026-05",
+  "rule": "Every task of the downloaded set whose created_at is in 2026-05, minus tasks excluded by the text screen; minus tasks whose reference fix does not grade 1 or whose do-nothing run does not grade 0, both with the restricted network; minus tasks whose image fails the structural leak check; minus tasks whose repository holds agent-instruction or agent-config files.",
+  "candidates": [
+    {
+      "name": "aallan__vera-662_interface",
+      "instruction_sha256": "8dc3d9b98f7f7eea616c59e8bb7cc0dbafdb0f9ad7d5064bced2d76945151383"
+    },
+    {
+      "name": "agronholm__anyio-1134",
+      "instruction_sha256": "3c12fb17e2934fc75c5da3ec516f6ccde8ffcf64fda187e5719044d9f1bedce1"
+    },
+    {
+      "name": "cs-si__eodag-2176",
+      "instruction_sha256": "195d3dd48063860822eedfffcc917fb4f697d29096b0b22d6e3d502451a736f2"
+    },
+    {
+      "name": "geopython__pygeoapi-2338",
+      "instruction_sha256": "052792b0c4e76012aab03ec898c3d3312e59c793d916960f14c6e353e5e0607d"
+    },
+    {
+      "name": "graphistry__pygraphistry-1277",
+      "instruction_sha256": "7950a717f3fd35bc836134c9913d4c931344dc2d962d9783a5a28c988704da6f"
+    },
+    {
+      "name": "itsdnns__docsight-437",
+      "instruction_sha256": "8a7faf7f7468797ad9357743f257fb1b47266a058765ee916fb7ba24c16e22b7"
+    },
+    {
+      "name": "macbre__sql-metadata-625_interface",
+      "instruction_sha256": "7e4f956b0626d0da297aedf99ba767369a05eae3a90d6142fc349ed61df2e2d8"
+    },
+    {
+      "name": "nesquena__hermes-webui-1818",
+      "instruction_sha256": "7a1aaf32d9344592d6f7925b1f52bdb277b34bb5ff9e64013e7d1eff24fdd7a6"
+    },
+    {
+      "name": "nesquena__hermes-webui-2056",
+      "instruction_sha256": "2a297aac623ffd3e4f6093b7e8c8a9b6ddef4e9455ee17055533504537f1bbed"
+    },
+    {
+      "name": "olofk__fusesoc-776_interface",
+      "instruction_sha256": "dd9a6e95445863d3ffbd51b56635d1c25780046e5ca58d9eb47b84b1cec34010"
+    },
+    {
+      "name": "pallets-eco__wtforms-892_interface",
+      "instruction_sha256": "98265a37624f6c6a88bb2f85e9c96edf54eea3713f467d270422f2511f923ae1"
+    },
+    {
+      "name": "python-wheel-build__fromager-1106",
+      "instruction_sha256": "a1226a8498c56b641033466590d7990a6167f95dc70eb5329eb3904362a176fd"
+    },
+    {
+      "name": "python-wheel-build__fromager-1124",
+      "instruction_sha256": "a700794b09f95cf5a2f174a98f77169920fb85407620b40708c25cd11d21c147"
+    },
+    {
+      "name": "raullenchai__rapid-mlx-227",
+      "instruction_sha256": "3ea40a296044921904b5532c2ce8404b3a9fdfac905fdf30b6dd45734201b74c"
+    },
+    {
+      "name": "raullenchai__rapid-mlx-228",
+      "instruction_sha256": "90e37f98084ce6494a6f746b55dc939f8b6937479de649641046a1dbebdee6b0"
+    },
+    {
+      "name": "raullenchai__rapid-mlx-289",
+      "instruction_sha256": "6c8c9112dbb68236ac5b673423d1f98ebe1c0d2f319818dcae3eec3db3b9d1a1"
+    },
+    {
+      "name": "raullenchai__rapid-mlx-341_interface",
+      "instruction_sha256": "1c5ad06cfc2af15887a08bb9102d2beb2fcc2427f0cd927059d7a04d5a0e16fa"
+    },
+    {
+      "name": "schemathesis__schemathesis-3933",
+      "instruction_sha256": "20ee54c290f4930ccb28a590f601fbf31e5cfd042aa231f9535237b12475bf73"
+    },
+    {
+      "name": "schemathesis__schemathesis-4087",
+      "instruction_sha256": "17a5595f80c45fdfe2159076a115fab31266b7c19c59de9b731a2851c0ba7ab7"
+    },
+    {
+      "name": "tox-dev__tox-3931",
+      "instruction_sha256": "84b739f49bbdb9aeab295f2bf559300bff445d491f6646f8e028ac1783a1528a"
+    }
+  ],
+  "excluded": [
+    {
+      "name": "aallan__vera-662_interface",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "agronholm__anyio-1134",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "geopython__pygeoapi-2338",
+      "reason": "reference fix does not grade 1 with grading offline"
+    },
+    {
+      "name": "graphistry__pygraphistry-1277",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "macbre__sql-metadata-625_interface",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "olofk__fusesoc-776_interface",
+      "reason": "reference fix does not grade 1 with grading offline"
+    },
+    {
+      "name": "python-wheel-build__fromager-1106",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "python-wheel-build__fromager-1124",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "raullenchai__rapid-mlx-227",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "raullenchai__rapid-mlx-228",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "raullenchai__rapid-mlx-289",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "raullenchai__rapid-mlx-341_interface",
+      "reason": "agent files in the repository"
+    },
+    {
+      "name": "youssofal__mtplx-21",
+      "reason": "its text quotes instructions addressed to a model and mentions a system prompt"
+    }
+  ],
+  "checks": {
+    "aallan__vera-662_interface": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "agronholm__anyio-1134": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "cs-si__eodag-2176": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "geopython__pygeoapi-2338": {
+      "oracle": 0,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "graphistry__pygraphistry-1277": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "itsdnns__docsight-437": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "macbre__sql-metadata-625_interface": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "nesquena__hermes-webui-1818": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "nesquena__hermes-webui-2056": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "olofk__fusesoc-776_interface": {
+      "oracle": 0,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "pallets-eco__wtforms-892_interface": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "python-wheel-build__fromager-1106": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "python-wheel-build__fromager-1124": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "raullenchai__rapid-mlx-227": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "raullenchai__rapid-mlx-228": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "raullenchai__rapid-mlx-289": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "raullenchai__rapid-mlx-341_interface": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "present"
+    },
+    "schemathesis__schemathesis-3933": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "schemathesis__schemathesis-4087": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    },
+    "tox-dev__tox-3931": {
+      "oracle": 1,
+      "nop": 0,
+      "leak": "CLEAN",
+      "agent_files": "none"
+    }
+  },
+  "checks_note": "Values from the second run of the free checks (job prefix list2, 2026-11-20), made with every image in the local store. In the first run (list1) the leak check could not run for 18 images because they were not in the local store yet, and raullenchai__rapid-mlx-227 had no reference-fix reward. geopython__pygeoapi-2338 and olofk__fusesoc-776_interface had reference-fix reward 0 in both runs. Both runs graded with the verifier phase offline and the agent phase limited to api.anthropic.com.",
+  "tasks": [
+    "cs-si__eodag-2176",
+    "itsdnns__docsight-437",
+    "nesquena__hermes-webui-1818",
+    "nesquena__hermes-webui-2056",
+    "pallets-eco__wtforms-892_interface",
+    "schemathesis__schemathesis-3933",
+    "schemathesis__schemathesis-4087",
+    "tox-dev__tox-3931"
+  ]
+}

@@ -99,6 +99,7 @@ echo "== runner exit code: $RC"
 report() {
   python3 -I - "$@" <<'PYEOF'
 import json, math, os, re, stat, sys, tomllib, unicodedata
+from datetime import datetime
 
 mode, job_dir, token_file = sys.argv[1:4]
 probe = os.environ.get("PROBE") == "1"
@@ -357,6 +358,182 @@ def summary_of(trial):
                 print(f"     output: {clean(result_text(outcome.get('content')))}")
 
 
+# Records: numbers, booleans, null, and strings from these fixed lists or strict patterns only.
+# The runner's exception type names (harbor 0.26.0, models/trial/error_policy.py).
+EXCEPTIONS = frozenset((
+    "EnvironmentStartTimeoutError", "SandboxBuildFailedError", "AgentSetupTimeoutError",
+    "HealthcheckError", "SandboxLikelyOutOfMemoryError", "MemoryLimitExceededError",
+    "SSHAccessError", "GKEExecStreamClosedError", "GKEPodNotFoundError", "RuntimeRequestError",
+    "AddTestsDirError", "DownloadVerifierDirError", "ApiError", "ApiRateLimitError",
+    "ApiInternalServerError", "ApiOverloadedError", "ApiConnectionClosedError",
+    "ApiResponseStalledError", "UnknownApiError", "NetworkConnectionError", "ApiConnectionError",
+    "ApiUsageLimitError", "RateLimitError", "InternalServerError", "ServiceUnavailableError",
+    "APIConnectionError", "APIError", "Timeout", "UnsupportedModelParametersError",
+    "BadRequestError", "UnprocessableEntityError", "UnsupportedParamsError",
+    "APIResponseValidationError", "BudgetExceededError", "VerifierTimeoutError",
+    "RewardFileNotFoundError", "RewardFileEmptyError", "VerifierOutputParseError",
+    "AgentAuthenticationError", "ModelNotFoundError", "ApiProviderResourceNotFoundError",
+    "AuthenticationError", "PermissionDeniedError", "NotFoundError",
+    "ServiceOperationsUnsupportedError", "VercelScopeError", "DspyImportError",
+    "MissingExtraError", "RegradeError", "CancelledError", "NonZeroAgentExitCodeError",
+    "AgentTimeoutError", "ContextWindowExceededError", "OutputTokenExceededError",
+    "ContextLengthExceededError", "OutputLengthExceededError", "AgentSafetyRefusalError",
+    "ContentPolicyViolationError"))
+SUBAGENTS = frozenset(["conclave:" + a for a in (
+    "dependency-analyzer", "diagnostician", "executor", "mech-executor", "plan-verifier",
+    "researcher", "scout", "security-executor", "security-reviewer", "verifier")]
+    + ["general-purpose", "Explore", "Plan", "statusline-setup", "claude-code-guide"])
+MODELS = frozenset(("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"))
+NAME = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9_.-]{0,80}")
+USAGE_KEYS = {"inputTokens": "input", "outputTokens": "output",
+              "cacheReadInputTokens": "cache_read", "cacheCreationInputTokens": "cache_creation"}
+RUNNER_KEYS = {"n_input_tokens": "input", "n_cache_tokens": "cache", "n_output_tokens": "output"}
+
+
+def disguised(text):
+    """True when text holds 12 characters in a row of the token, forwards or reversed."""
+    w = min(12, len(token))
+    return any(t[i:i + w] in text for t in (token, token[::-1]) for i in range(len(t) - w + 1))
+
+
+def pick(value, allowed):
+    return value if isinstance(value, str) and value in allowed else "other"
+
+
+def name(value):
+    ok = isinstance(value, str) and NAME.fullmatch(value) and not disguised(value)
+    return value if ok else "invalid"
+
+
+def count(value, top):
+    ok = isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= top
+    return value if ok else None
+
+
+def dig(data, *keys):
+    for key in keys:
+        data = data.get(key) if isinstance(data, dict) else None
+    return data
+
+
+def seconds(timing):
+    try:
+        value = (datetime.fromisoformat(timing["finished_at"])
+                 - datetime.fromisoformat(timing["started_at"])).total_seconds()
+    except Exception:
+        return None
+    return round(value, 3) if 0 <= value <= 1e6 else None
+
+
+def tokens_of(final, result, model):
+    usage = final.get("modelUsage") if final else None
+    if isinstance(usage, dict) and len(usage) > 1:
+        source, keys, items = "final_event_per_model", USAGE_KEYS, usage.items()
+    else:
+        agent = result.get("agent_result")
+        if not (isinstance(agent, dict) and any(agent.get(k) is not None for k in RUNNER_KEYS)):
+            return None, "none"
+        source, keys, items = "runner_main_session", RUNNER_KEYS, [(model, agent)]
+    out = {}
+    for key, u in items:
+        u = u if isinstance(u, dict) else {}
+        entry = out.setdefault(pick(key, MODELS), dict.fromkeys(keys.values(), 0))
+        for src, dst in keys.items():
+            v = count(u.get(src), 10**10)
+            entry[dst] = None if v is None or entry[dst] is None else count(entry[dst] + v, 10**10)
+    return out, source
+
+
+def network_mode(path):
+    try:
+        agent = tomllib.loads(read(os.path.join(path, "task.toml")) or "?").get("agent", {})
+    except (TypeError, ValueError):
+        return "unknown"
+    mode = agent.get("network_mode", "public") if isinstance(agent, dict) else None
+    return mode if mode in ("allowlist", "public", "no-network") else "unknown"
+
+
+def record_of(trial, job, arm, cap):
+    tdir = os.path.join(job_dir, trial)
+    host = os.path.join(tdir, "agent-host")
+    result = load_json(os.path.join(tdir, "result.json")) or {}
+    config = load_json(os.path.join(tdir, "config.json")) or {}
+    path = dig(config, "task", "path")
+    kwargs = dig(config, "agent", "kwargs")
+    model_name = dig(config, "agent", "model_name")
+    model = next((m for m in MODELS if model_name in (m, "anthropic/" + m)), "other")
+    version = dig(kwargs, "version")
+    plugin = dig(kwargs, "plugin_src")
+    plugin = plugin.rstrip("/").rsplit("/", 1)[-1] if isinstance(plugin, str) else None
+    reward = dig(result, "verifier_result", "rewards", "reward")
+    exc = result.get("exception_info")
+    exc = pick(exc.get("exception_type"), EXCEPTIONS) if isinstance(exc, dict) else None
+    host_ok = os.path.isdir(host) and not os.path.islink(host)
+    evs = events(read(os.path.join(host, "claude-code.txt"))) if host_ok else []
+    final = next((e for e in reversed(evs) if e.get("type") == "result"), None)
+    cost = final.get("total_cost_usd") if final else None
+    cost_ok = isinstance(cost, (int, float)) and not isinstance(cost, bool) and 0 <= cost <= cap
+    tokens, tokens_source = tokens_of(final, result, model)
+    calls = [b for e in evs for b in blocks(e) if b.get("type") == "tool_use"]
+    dispatches = {}
+    for c in calls:
+        if c.get("name") in ("Agent", "Task"):
+            key = pick(dig(c, "input", "subagent_type"), SUBAGENTS)
+            dispatches[key] = dispatches.get(key, 0) + 1
+    plans = os.path.join(host, "plans")
+    lines = lambda log: len((read(os.path.join(host, log)) or "").splitlines())
+    n = lambda value: count(value, 10**6) if host_ok else None
+    return {
+        "job": name(job), "arm": arm if arm in ("plain", "fleet") else None,
+        "round": int(m.group(1)) if (m := re.fullmatch(r"[A-Za-z0-9._-]*-r([1-9])", job)) else None,
+        "task": name(path.rstrip("/").rsplit("/", 1)[-1] if isinstance(path, str) else None),
+        "trial": name(trial),
+        "reward": int(reward) if isinstance(reward, (int, float)) and not isinstance(reward, bool)
+        and reward in (0, 1) else None,
+        "exception": exc, "timed_out": exc == "AgentTimeoutError",
+        "cost_usd": float(cost) if cost_ok else None,
+        "cost_source": "none" if final is None else "final_event" if cost_ok else "out_of_range",
+        "tokens": tokens, "tokens_source": tokens_source,
+        "agent_seconds": seconds(result.get("agent_execution")), "trial_seconds": seconds(result),
+        "is_error": final.get("is_error") if final and isinstance(final.get("is_error"), bool) else None,
+        "budget_capped": final.get("subtype") == "error_max_budget_usd" if final else None,
+        "rate_limit_events": n(sum(error_kinds(e)[0] for e in evs)),
+        "auth_errors": n(sum(error_kinds(e)[1] for e in evs)),
+        "question_calls": n(sum(c.get("name") == "AskUserQuestion" for c in calls)),
+        "approver_lines": n(lines("approver.jsonl")), "anomalies": n(lines("ANOMALIES.txt")),
+        "dispatches": {k: count(v, 10**6) for k, v in dispatches.items()} if host_ok else None,
+        "plan_saved": host_ok and os.path.isdir(plans) and not os.path.islink(plans) and any(
+            stat.S_ISREG(os.lstat(os.path.join(plans, p)).st_mode) for p in os.listdir(plans)),
+        "model": model,
+        "cli_version": version if isinstance(version, str)
+        and re.fullmatch(r"[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}", version) else None,
+        "fleet_version": plugin if plugin and re.fullmatch(r"[0-9a-f]{7,40}", plugin)
+        and not disguised(plugin) else None,
+        "network": network_mode(path) if isinstance(path, str) else "unknown",
+    }
+
+
+def write_records(job, arm, cap):
+    if not os.path.isdir(job_dir) or os.path.islink(job_dir):
+        print("records: not written (no job folder)")
+        return 1
+    lines = []
+    for trial in trials():
+        try:
+            lines.append(json.dumps(record_of(trial, job, arm, cap), allow_nan=False, sort_keys=True))
+        except Exception as exc:
+            print(f"records: no record for a trial ({type(exc).__name__})")
+    text = "".join(line + "\n" for line in lines)
+    if disguised(text):
+        print("records: not written (token-like text in a record)")
+        return 1
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
+    with os.fdopen(os.open(os.path.join(job_dir, "records.jsonl"), flags, 0o644), "w",
+                   encoding="ascii") as handle:
+        handle.write(text)
+    return 0
+
+
 if not token:
     sys.exit("empty token")
 if mode == "scan":
@@ -365,6 +542,12 @@ if mode == "scan":
     except Exception as exc:
         print(f"anomaly scan failed: {type(exc).__name__}")
         sys.exit(4)
+if mode == "records":
+    try:
+        sys.exit(write_records(sys.argv[4], sys.argv[5], float(sys.argv[6]) + 1.00))
+    except Exception as exc:
+        print(f"records: not written ({type(exc).__name__})")
+        sys.exit(1)
 for trial in trials():
     try:
         summary_of(trial)
@@ -396,6 +579,9 @@ ANOMALY=$?
 
 # 6. Summary from the host-only copies and the result files.
 report summary "$JOB_DIR" "$TOKEN_FILE"
+
+# 7. One numeric record per trial (records.jsonl), only after a clean search and scan.
+[ "$ANOMALY" -eq 0 ] && report records "$JOB_DIR" "$TOKEN_FILE" "$JOB" "$ARM" "$BUDGET"
 
 [ "$ANOMALY" -eq 4 ] && exit 4
 exit "$RC"

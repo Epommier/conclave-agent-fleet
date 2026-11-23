@@ -1,0 +1,34 @@
+{
+  "cli_version": "2.1.327",
+  "date": "2026-11-23",
+  "dropped_records": 0,
+  "fleet_version": "6b4c4cf",
+  "limits": [
+    "Not fresh: all tasks were created by 2026-05-12 and the models' training cutoff is June 2026, so the models may have seen the fixes.",
+    "Small numbers: 8 tasks and 3 attempts per task confirm only large differences.",
+    "Cost figures come from the run log, a file the container can write; a container that falsified it could understate spend.",
+    "Token figures come from different sources: the final event's per-model usage (input, output, cache read, cache creation) or the runner's main-session figures (input including cache, plus output); the source of each arm is named."
+  ],
+  "list_version": "2026-05-v1",
+  "listed_tasks": 8,
+  "model": "claude-sonnet-5-5",
+  "records_per_job": {
+    "cmp1-fleet-r1": 8,
+    "cmp1-fleet-r2": 8,
+    "cmp1-fleet-r3": 8,
+    "cmp1-plain-r1": 8,
+    "cmp1-plain-r2": 8,
+    "cmp1-plain-r3": 8
+  },
+  "rounds_completed": [
+    1,
+    2,
+    3
+  ],
+  "spend_all_jobs": 14.7934,
+  "spend_complete_rounds": 14.7934,
+  "time_outliers": {
+    "fleet": 7,
+    "plain": 0
+  }
+}
