@@ -151,6 +151,8 @@ After editing files, `/reload-plugins` inside the session picks up the changes.
 /reload-plugins
 ```
 
+[`eval/README.md`](eval/README.md) explains the eval that compares a plain session with `/conclave:implement`.
+
 ## Migrating from a ~/.claude setup
 
 If the same agents, skills and guidance already live in `~/.claude`, they keep working next to the plugin, with two side effects: the guidance reaches the session twice, and bare names such as `scout` or `/implement` still resolve to the `~/.claude` copies rather than the plugin's. Once the plugin is trusted, retire the originals:
