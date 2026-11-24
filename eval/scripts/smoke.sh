@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # Smoke test: one unattended /conclave:implement run on a throwaway repo, with
-# eval/approver.py answering AskUserQuestion through a PreToolUse hook.
+# eval/hooks/approver.py answering AskUserQuestion through a PreToolUse hook.
 # Why the flags (measured on Claude Code 2.1.327):
 # - A hook alone is not enough: -p only offers AskUserQuestion when a permission host
 #   channel is attached (--input-format stream-json --permission-prompt-tool stdio).
 # - With that channel the hook answers, and --permission-mode dontAsk denies anything
 #   off the allow list, so nothing waits on the absent host after stdin closes.
 # - Any folder named .claude is write-protected in unattended runs; no allow rule,
-#   --add-dir or permitting hook helps, so eval/redirect_plans.py rewrites
+#   --add-dir or permitting hook helps, so eval/hooks/redirect_plans.py rewrites
 #   ~/.claude/plans/<name>.md into $RUN_DIR/plans.
 # SPENDS REAL MONEY: up to about $BUDGET dollars (default 3) of API usage.
-# Run: eval/smoke.sh   (env overrides: MODEL=sonnet BUDGET=3)
+# Run: eval/scripts/smoke.sh   (env overrides: MODEL=sonnet BUDGET=3)
 set -euo pipefail
 
 MODEL="${MODEL:-sonnet}"
 BUDGET="${BUDGET:-3}"
-PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_DIR="$(mktemp -d)"
 PLANS="$HOME/.claude/plans"
 echo "RUN_DIR=$RUN_DIR"
@@ -44,10 +44,10 @@ SETTINGS="$(python3 - "$RUN_DIR" "$PLUGIN_DIR" <<'EOF'
 import json, sys
 run_dir, plugin_dir = sys.argv[1:]
 cmd = (f"CONCLAVE_EVAL=1 CONCLAVE_APPROVER_LOG='{run_dir}/approver.jsonl' "
-       f"python3 '{plugin_dir}/eval/approver.py'")
+       f"python3 '{plugin_dir}/eval/hooks/approver.py'")
 redirect = (f"CONCLAVE_EVAL=1 CONCLAVE_PLANS_DIR='{run_dir}/plans' "
             f"CONCLAVE_REDIRECT_LOG='{run_dir}/redirect.jsonl' "
-            f"python3 -I '{plugin_dir}/eval/redirect_plans.py'")
+            f"python3 -I '{plugin_dir}/eval/hooks/redirect_plans.py'")
 print(json.dumps({"hooks": {"PreToolUse": [{"matcher": "AskUserQuestion",
       "hooks": [{"type": "command", "command": cmd, "timeout": 30}]},
       {"matcher": "Write|Edit|Read",

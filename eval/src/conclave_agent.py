@@ -173,7 +173,7 @@ FLEET_SETTINGS = {
                 "matcher": "AskUserQuestion",
                 "hooks": _hook(
                     "CONCLAVE_EVAL=1 CONCLAVE_APPROVER_LOG=/logs/agent/approver.jsonl "
-                    "python3 /opt/conclave/eval/approver.py",
+                    "python3 /opt/conclave/eval/hooks/approver.py",
                     30,
                 ),
             },
@@ -182,7 +182,7 @@ FLEET_SETTINGS = {
                 "hooks": _hook(
                     "CONCLAVE_EVAL=1 CONCLAVE_PLANS_DIR=/logs/agent/plans "
                     "CONCLAVE_REDIRECT_LOG=/logs/agent/redirect.jsonl "
-                    "python3 -I /opt/conclave/eval/redirect_plans.py",
+                    "python3 -I /opt/conclave/eval/hooks/redirect_plans.py",
                     10,
                 ),
             },

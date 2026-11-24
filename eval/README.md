@@ -30,9 +30,10 @@ flowchart LR
 | `fleet` | `conclave_agent:ConclaveClaudeCode` | Everything in `plain`, plus the plugin, the host channel flags, two hooks and the `/conclave:implement ` prefix. |
 
 - Host-only copy: the agent log folder is mounted into the container and written by root there. Before the runner's post-run step reads it, `GuardedClaudeCode` copies it to a sibling folder `agent-host/` without following symlinks. Only regular files and folders are copied, at most 200 MB per file and 500 MB in total. Skipped entries are listed in `agent-host/ANOMALIES.txt`. Every later host-side read uses the copy.
-- Plugin: `run_arm.sh fleet` exports `.claude-plugin`, `agents`, `skills`, `guidance`, `hooks`, `eval/approver.py` and `eval/redirect_plans.py` as committed at `HEAD` (`git archive`) into `eval/.runs/export/<short-sha>`. It refuses to run if those paths have uncommitted changes. The agent uploads the export to `/opt/conclave` in the container.
+- Plugin: `run_arm.sh fleet` exports `.claude-plugin`, `agents`, `skills`, `guidance`, `hooks`, `eval/hooks/approver.py` and `eval/hooks/redirect_plans.py` as committed at `HEAD` (`git archive`) into `eval/.runs/export/<short-sha>`. It refuses to run if those paths have uncommitted changes. The agent uploads the export to `/opt/conclave` in the container.
 - Flags: `--input-format stream-json`, `--permission-prompt-tool stdio` and `--plugin-dir /opt/conclave`. Without the host channel, `-p` does not offer the question tool.
 - Prefix: the task text is sent as `/conclave:implement <task>`. A task that is only a path or a URL is refused, because the skill would read or fetch it.
+- Report program: `eval/src/report.py` (trial-folder scan, summary and records, called by `run_arm.sh`). Image checks: `eval/src/check_images.py` (called by `check_tasks.sh`).
 - Both arms run with `--permission-mode=bypassPermissions` (the runner's default, checked in `test_conclave_agent.py`).
 
 ### Unattended gates
@@ -79,24 +80,28 @@ After each job, `run_arm.sh` writes one record per trial to `eval/.runs/jobs/<jo
 
 | File | Purpose |
 |---|---|
-| `approver.py` | Hook that answers the question tool with the recommended option. |
-| `check_tasks.sh` | Free checks on task copies: reference fix, do-nothing run, leak check, agent files. No token, no model. |
-| `conclave_agent.py` | The two agent classes for the runner. |
-| `leak_check.sh` | Looks for the reference fix hidden inside a task image. |
-| `prepare_tasks.py` | Builds task copies with the restricted network from a task list. |
-| `redirect_plans.py` | Hook that moves plan files out of `~/.claude/plans`. |
-| `requirements.txt` | The pinned runner version and the venv recipe. |
-| `results/2026-05-v1/sonnet-5-5__cli-2.1.327__fleet-6b4c4cf/meta.json` | First comparison: run metadata. |
-| `results/2026-05-v1/sonnet-5-5__cli-2.1.327__fleet-6b4c4cf/records.jsonl` | First comparison: validated records. |
-| `results/2026-05-v1/sonnet-5-5__cli-2.1.327__fleet-6b4c4cf/summary.md` | First comparison: report. |
-| `run_arm.sh` | Runs one arm, then the token search, anomaly scan, summary and records. |
-| `smoke.sh` | One unattended `/conclave:implement` run on a throwaway repository, on the host. Spends money. |
-| `summary.py` | Compares the arms from their records. |
-| `tasklists/2026-05-v1.json` | The May 2026 task list. |
-| `test_approver.py` | Tests for `approver.py`. |
-| `test_conclave_agent.py` | Tests for the agent classes. |
-| `test_redirect_plans.py` | Tests for `redirect_plans.py`. |
-| `test_summary.py` | Tests for `summary.py`. |
+| `eval/scripts/run_arm.sh` | Runs one arm, then the token search, anomaly scan, summary and records. |
+| `eval/scripts/check_tasks.sh` | Free checks on task copies: reference fix, do-nothing run, leak check, agent files. No token, no model. |
+| `eval/scripts/smoke.sh` | One unattended `/conclave:implement` run on a throwaway repository, on the host. Spends money. |
+| `eval/scripts/leak_check.sh` | Looks for the reference fix hidden inside a task image. |
+| `eval/src/conclave_agent.py` | The two agent classes for the runner. |
+| `eval/src/report.py` | Checks, summarises and records one job folder; called by `run_arm.sh`. |
+| `eval/src/summary.py` | Compares the arms from their records. |
+| `eval/src/prepare_tasks.py` | Builds task copies with the restricted network from a task list. |
+| `eval/src/fixed_lists.py` | Fixed validation lists and patterns shared by `report.py` and `summary.py`. |
+| `eval/src/check_images.py` | Checks each task image: oracle and nop rewards, leak verdict, agent files; called by `check_tasks.sh`. |
+| `eval/hooks/approver.py` | Hook that answers the question tool with the recommended option. |
+| `eval/hooks/redirect_plans.py` | Hook that moves plan files out of `~/.claude/plans`. |
+| `eval/tests/test_approver.py` | Tests for `approver.py`. |
+| `eval/tests/test_redirect_plans.py` | Tests for `redirect_plans.py`. |
+| `eval/tests/test_summary.py` | Tests for `summary.py`. |
+| `eval/tests/test_report.py` | Tests for `report.py`: token-file refusal, the anomaly scan, the records refusal. |
+| `eval/tests/test_conclave_agent.py` | Tests for the agent classes. |
+| `eval/requirements.txt` | The pinned runner version and the venv recipe. |
+| `eval/tasklists/2026-05-v1.json` | The May 2026 task list. |
+| `eval/results/2026-05-v1/sonnet-5-5__cli-2.1.327__fleet-6b4c4cf/meta.json` | First comparison: run metadata. |
+| `eval/results/2026-05-v1/sonnet-5-5__cli-2.1.327__fleet-6b4c4cf/records.jsonl` | First comparison: validated records. |
+| `eval/results/2026-05-v1/sonnet-5-5__cli-2.1.327__fleet-6b4c4cf/summary.md` | First comparison: report. |
 
 ## Safety
 
@@ -105,7 +110,7 @@ After each job, `run_arm.sh` writes one record per trial to `eval/.runs/jobs/<jo
 - The token goes only into the runner process's environment, as a prefix assignment. It is never on a command line of ours, never passed with `--ae`, `--ak` or `--env-file`, never exported and never written to a file. Inherited shell tracing is switched off first.
 - `run_arm.sh` refuses when `.env.local` exists in the worktree root, because the runner loads it.
 - Every `CLAUDE_*`, `ANTHROPIC_*` and `MAX_THINKING_TOKENS` variable of the caller is removed before the runner starts. `check_tasks.sh` does the same and refuses if `CLAUDE_CODE_OAUTH_TOKEN` is set.
-- After each job, `run_arm.sh` searches the whole worktree for the literal token. On a hit, or when the search cannot read everything, it prints only a count and exits 3. It then scans the job folder for entries that are not regular files or folders, are setuid or setgid, are owned by another user, or cannot be read, and exits 4 on any. After 3 or 4, launch nothing more.
+- After each job, `run_arm.sh` searches the whole worktree for the literal token. On a hit, or when the search cannot read everything, it prints only a count and exits 3 (as it also does when records are refused for token-like text). It then scans the job folder for entries that are not regular files or folders, are setuid or setgid, are owned by another user, or cannot be read, and exits 4 on any anomaly, a failed scan, or any other records failure. Records are written only after a clean search and scan. After 3 or 4, launch nothing more.
 - `bypassPermissions` is used only inside disposable task containers.
 
 Residual risks:
@@ -164,18 +169,18 @@ Usage: `prepare_tasks.py <tasklist.json> <candidates|tasks> <source-dir> <out-di
 
 ```bash
 # all candidates, for the free checks
-python3 -I -B eval/prepare_tasks.py eval/tasklists/2026-05-v1.json candidates <source-dir> eval/.runs/tasks/2026-05-v1-candidates
+python3 -I -B eval/src/prepare_tasks.py eval/tasklists/2026-05-v1.json candidates <source-dir> eval/.runs/tasks/2026-05-v1-candidates
 
 # the final tasks, for the paid runs
-python3 -I -B eval/prepare_tasks.py eval/tasklists/2026-05-v1.json tasks <source-dir> eval/.runs/tasks/2026-05-v1
+python3 -I -B eval/src/prepare_tasks.py eval/tasklists/2026-05-v1.json tasks <source-dir> eval/.runs/tasks/2026-05-v1
 ```
 
 ### 5. Free checks
 
-Usage: `eval/check_tasks.sh <tasks-dir> <job-prefix>`. The tasks folder must be under `eval/.runs/tasks/` and hold only task folders. The prefix is 1 to 40 letters, digits, `_` or `-`. It runs the jobs `<prefix>-oracle` and `<prefix>-nop` and may pull the task images.
+Usage: `eval/scripts/check_tasks.sh <tasks-dir> <job-prefix>`. The tasks folder must be under `eval/.runs/tasks/` and hold only task folders. The prefix is 1 to 40 letters, digits, `_` or `-`. It runs the jobs `<prefix>-oracle` and `<prefix>-nop` and may pull the task images.
 
 ```bash
-eval/check_tasks.sh eval/.runs/tasks/2026-05-v1-candidates list1
+eval/scripts/check_tasks.sh eval/.runs/tasks/2026-05-v1-candidates list1
 ```
 
 One line per task:
@@ -188,7 +193,7 @@ A usable task shows `oracle=1 nop=0 leak=CLEAN agentfiles=none`. Exit 0 ran to t
 
 ### 6. Run one arm (paid)
 
-Usage: `eval/run_arm.sh <plain|fleet> <job-name> <tasks-dir> [extra runner arguments]`.
+Usage: `eval/scripts/run_arm.sh <plain|fleet> <job-name> <tasks-dir> [extra runner arguments]`.
 
 | Variable | Meaning |
 |---|---|
@@ -202,29 +207,30 @@ Usage: `eval/run_arm.sh <plain|fleet> <job-name> <tasks-dir> [extra runner argum
 Extra arguments allowed: `-n <count>` (concurrent trials), `-i <task>` (task name or glob), `--disable-verification`. Each trial gets one attempt.
 
 ```bash
-MODEL=claude-sonnet-5-5 BUDGET=1.00 eval/run_arm.sh plain cmp1-plain-r1 eval/.runs/tasks/2026-05-v1 -n 3
-MODEL=claude-sonnet-5-5 BUDGET=2.50 eval/run_arm.sh fleet cmp1-fleet-r1 eval/.runs/tasks/2026-05-v1 -n 3
+MODEL=claude-sonnet-5-5 BUDGET=1.00 eval/scripts/run_arm.sh plain cmp1-plain-r1 eval/.runs/tasks/2026-05-v1 -n 3
+MODEL=claude-sonnet-5-5 BUDGET=2.50 eval/scripts/run_arm.sh fleet cmp1-fleet-r1 eval/.runs/tasks/2026-05-v1 -n 3
 ```
 
 Repeat with `r2`, `r3` and so on for more rounds. `summary.py` expects the names `cmp1-<plain|fleet>-r<1-9>` and the caps 1.00 and 2.50.
 
-Exit codes: 0 run completed, nothing found; 2 refused before running; 3 token found, or the search could not read everything; 4 anomaly in a trial folder; otherwise the runner's exit code. The job folder is `eval/.runs/jobs/<job-name>/`, with `records.jsonl` inside.
+Exit codes: 0 run completed, nothing found; 2 refused before running; 3 token found, search incomplete, or records refused for token-like text; 4 anomaly in a trial folder, a failed scan, or any other records failure; otherwise the runner's exit code. Records are written only after a clean search and scan. The job folder is `eval/.runs/jobs/<job-name>/`, with `records.jsonl` inside.
 
 ### 7. Summary
 
 The out-dir must be absent or empty. Exit 0 written, 2 refused.
 
 ```bash
-python3 -I -B eval/summary.py eval/tasklists/2026-05-v1.json <out-dir> eval/.runs/jobs/cmp1-plain-r1 eval/.runs/jobs/cmp1-fleet-r1
+python3 -I -B eval/src/summary.py eval/tasklists/2026-05-v1.json <out-dir> eval/.runs/jobs/cmp1-plain-r1 eval/.runs/jobs/cmp1-fleet-r1
 ```
 
 ### 8. Tests
 
 ```bash
-python3 -I -B eval/test_approver.py
-python3 -I -B eval/test_redirect_plans.py
-python3 -I -B eval/test_summary.py
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=eval eval/.venv/bin/python -m unittest eval/test_conclave_agent.py
+python3 -I -B eval/tests/test_approver.py
+python3 -I -B eval/tests/test_redirect_plans.py
+python3 -I -B eval/tests/test_summary.py
+python3 -I -B eval/tests/test_report.py
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=eval/src eval/.venv/bin/python -m unittest eval/tests/test_conclave_agent.py
 ```
 
 ### 9. Cleanup
@@ -240,7 +246,7 @@ docker image ls --format '{{.Repository}}:{{.Tag}}' | grep '^swerebench/' | xarg
 
 - Disable machine sleep during paid runs. A suspended machine inflates agent times.
 - Give each paid run its own spending cap.
-- `eval/smoke.sh` spends real money too.
+- `eval/scripts/smoke.sh` spends real money too.
 
 ## Results
 

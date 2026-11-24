@@ -1,109 +1,28 @@
-#!/usr/bin/env bash
-# run_arm.sh - run one arm through the eval runner inside the task containers, signed in
-# with the subscription OAuth token, then check the trial folders, search for the token and
-# print a sanitised summary.
-#
-# Usage: eval/run_arm.sh <plain|fleet> <job-name> <tasks-dir> [extra runner arguments]
-#   plain  conclave_agent:GuardedClaudeCode    fleet  conclave_agent:ConclaveClaudeCode
-#   The tasks folder selects the agent-phase network (its task.toml files declare it).
-# Env: MODEL (required), BUDGET (required, per-trial CLI cap in dollars), SKILL_PREFIX
-#   (fleet only, optional; may be empty), PROBE=1 (adds every tool call to the summary),
-#   TOKEN_FILE (default ~/.config/conclave-eval/oauth-token),
-#   HARBOR_BIN (default eval/.venv/bin/harbor).
-# Exit: 0 run completed, nothing found; 2 refused before running; 3 token found (or the
-#   search could not read everything); 4 anomaly in a trial folder; otherwise the runner's
-#   exit code. After 3 or 4, launch nothing more and report to the user.
-#
-# The token only ever goes into the runner process's environment: never on a command line,
-# never with --ae/--ak/--env-file, never exported here, never written. Never enable set -x.
-# First: drop inherited tracing (bash -x, SHELLOPTS=xtrace, BASH_ENV) and keep it from children.
-set +x; export -n SHELLOPTS; unset -v BASH_ENV
-set -uo pipefail
+"""Check, summarise and record one eval job folder; called by eval/scripts/run_arm.sh.
 
-refuse() { echo "REFUSED: $*" >&2; exit 2; }
+Usage: python3 -I -B eval/src/report.py <scan|records|summary> <job-dir> <token-file>
+           [<job> <arm> <budget>]
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)" || refuse "cannot find the worktree root"
-cd "$ROOT" || refuse "cannot enter $ROOT"
+The token file must be a regular file (no symlink, FIFO or device), owned by the current user,
+mode 600, with one link, holding one line: sk-ant-oat followed by A-Z a-z 0-9 _ - only. The
+token is used only to redact container text and to refuse token-like output.
 
-[ $# -ge 3 ] || refuse "usage: eval/run_arm.sh <plain|fleet> <job-name> <tasks-dir> [extra runner arguments]"
-ARM=$1 JOB=$2 TASKS=$3
-shift 3
-case $ARM in
-  plain) AGENT=conclave_agent:GuardedClaudeCode ;;
-  fleet) AGENT=conclave_agent:ConclaveClaudeCode ;;
-  *) refuse "arm must be plain or fleet" ;;
-esac
-[[ $JOB =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || refuse "job name: letters, digits, '.', '_' and '-' only"
-[ -d "$TASKS" ] || refuse "tasks folder not found: $TASKS"
-[ -n "${MODEL:-}" ] || refuse "MODEL is required"
-[[ ${BUDGET:-} =~ ^[0-9]+(\.[0-9]+)?$ ]] || refuse "BUDGET is required, in dollars (for example 2.00)"
-EXTRA=()
-while [ $# -gt 0 ]; do
-  case $1 in
-    -n) [[ ${2:-} =~ ^[1-9][0-9]*$ ]] || refuse "-n needs a positive integer"
-        EXTRA+=("$1" "$2"); shift 2 ;;
-    -i) [[ ${2:-} =~ ^[A-Za-z0-9_.*?-]+$ ]] || refuse "-i needs a task name or glob: letters, digits, _ - . * ? only"
-        EXTRA+=("$1" "$2"); shift 2 ;;
-    --disable-verification) EXTRA+=("$1"); shift ;;
-    *) refuse "extra runner argument not allowed (only -n <count>, -i <task>, --disable-verification)" ;;
-  esac
-done
-TOKEN_FILE=${TOKEN_FILE:-$HOME/.config/conclave-eval/oauth-token}
-HARBOR_BIN=${HARBOR_BIN:-eval/.venv/bin/harbor}
-JOBS_DIR=eval/.runs/jobs
-JOB_DIR=$JOBS_DIR/$JOB
-
-# 1. Token file, .env.local, job name.
-{ [ -f "$TOKEN_FILE" ] && [ ! -L "$TOKEN_FILE" ]; } || refuse "token file missing or not a regular file: $TOKEN_FILE"
-read -r T_UID T_MODE T_LINKS < <(stat -c '%u %a %h' -- "$TOKEN_FILE") || refuse "cannot stat the token file"
-{ [ "$T_UID" = "$(id -u)" ] && [ "$T_MODE" = 600 ] && [ "$T_LINKS" = 1 ]; } \
-  || refuse "token file must be owned by you, mode 600, with a single link"
-{ [ "$(LC_ALL=C grep -c '' -- "$TOKEN_FILE")" = 1 ] \
-  && [ "$(LC_ALL=C grep -cxE 'sk-ant-oat[A-Za-z0-9_-]+' -- "$TOKEN_FILE")" = 1 ]; } \
-  || refuse "token file must hold exactly one line: sk-ant-oat followed by A-Z a-z 0-9 _ - only"
-# The runner loads .env.local from its working folder, under our environment.
-{ [ -e .env.local ] || [ -L .env.local ]; } && refuse ".env.local exists in $ROOT"
-{ [ -e "$JOB_DIR" ] || [ -L "$JOB_DIR" ]; } && refuse "job already exists: $JOB_DIR"
-
-AGENT_ARGS=()
-# 2. Fleet arm: the plugin as committed at HEAD.
-if [ "$ARM" = fleet ]; then
-  PLUGIN_PATHS=(.claude-plugin agents skills guidance hooks eval/approver.py eval/redirect_plans.py)
-  [ -z "$(git status --porcelain -- "${PLUGIN_PATHS[@]}")" ] || refuse "uncommitted changes to the plugin paths"
-  SHA=$(git rev-parse --short HEAD) || refuse "cannot read HEAD"
-  EXPORT=$ROOT/eval/.runs/export/$SHA
-  rm -rf -- "$EXPORT" && mkdir -p -- "$EXPORT" || refuse "cannot create $EXPORT"
-  git archive HEAD -- "${PLUGIN_PATHS[@]}" | tar -x -C "$EXPORT" || refuse "plugin export failed"
-  AGENT_ARGS+=(--ak "plugin_src=$EXPORT")
-  if [ -n "${SKILL_PREFIX+set}" ]; then
-    # JSON-quoted: the runner strips --ak values, which would drop a trailing space.
-    AGENT_ARGS+=(--ak "skill_prefix=$(python3 -I -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$SKILL_PREFIX")")
-  fi
-fi
-
-# 3. The run. The token is a prefix assignment: in the runner's environment only.
-# No CLAUDE_*, ANTHROPIC_* or MAX_THINKING_TOKENS from the caller reaches the runner.
-for v in $(compgen -e); do
-  case $v in CLAUDE_*|ANTHROPIC_*|MAX_THINKING_TOKENS) unset -v "$v" || refuse "cannot remove $v" ;; esac
-done
-env -0 | LC_ALL=C grep -zqE '^(CLAUDE_|ANTHROPIC_|MAX_THINKING_TOKENS=)' \
-  && refuse "the environment holds a CLAUDE_ or ANTHROPIC_ entry that cannot be removed"
-echo "== run: arm=$ARM job=$JOB tasks=$TASKS"
-CLAUDE_CODE_OAUTH_TOKEN="$(<"$TOKEN_FILE")" CLAUDE_FORCE_OAUTH=1 PYTHONPATH=eval \
-  "$HARBOR_BIN" run -p "$TASKS" -a "$AGENT" -m "$MODEL" -k 1 -o "$JOBS_DIR" --job-name "$JOB" \
-  --ak version=2.1.327 --ak "max_budget_usd=\"$BUDGET\"" \
-  "${AGENT_ARGS[@]}" "${EXTRA[@]}"
-RC=$?
-echo "== runner exit code: $RC"
-
-report() {
-  python3 -I - "$@" <<'PYEOF'
+Modes:
+  scan     lists trial-folder entries that are not a regular file or folder, setuid or setgid,
+           or owned by another user. Exit 0 nothing found (or no job folder), 4 anomalies found
+           or the scan failed.
+  records  writes <job-dir>/records.jsonl, one numeric record per trial (needs <job> <arm>
+           <budget>). Exit 0 written, 3 not written (token-like text in a record), 1 any other
+           failure.
+  summary  (any other mode word) prints a sanitised summary of each trial. Exit 0.
+Every mode exits 1 when the token file is refused.
+"""
 import json, math, os, re, stat, sys, tomllib, unicodedata
 from datetime import datetime
 
-mode, job_dir, token_file = sys.argv[1:4]
-probe = os.environ.get("PROBE") == "1"
-token = open(token_file, encoding="ascii").read().strip()
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+import fixed_lists
+
 MAX_READ = 50 * 1024 * 1024
 DROP = {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
 NOTICE = "are ignored because the effective network policy is public"
@@ -359,32 +278,8 @@ def summary_of(trial):
 
 
 # Records: numbers, booleans, null, and strings from these fixed lists or strict patterns only.
-# The runner's exception type names (harbor 0.26.0, models/trial/error_policy.py).
-EXCEPTIONS = frozenset((
-    "EnvironmentStartTimeoutError", "SandboxBuildFailedError", "AgentSetupTimeoutError",
-    "HealthcheckError", "SandboxLikelyOutOfMemoryError", "MemoryLimitExceededError",
-    "SSHAccessError", "GKEExecStreamClosedError", "GKEPodNotFoundError", "RuntimeRequestError",
-    "AddTestsDirError", "DownloadVerifierDirError", "ApiError", "ApiRateLimitError",
-    "ApiInternalServerError", "ApiOverloadedError", "ApiConnectionClosedError",
-    "ApiResponseStalledError", "UnknownApiError", "NetworkConnectionError", "ApiConnectionError",
-    "ApiUsageLimitError", "RateLimitError", "InternalServerError", "ServiceUnavailableError",
-    "APIConnectionError", "APIError", "Timeout", "UnsupportedModelParametersError",
-    "BadRequestError", "UnprocessableEntityError", "UnsupportedParamsError",
-    "APIResponseValidationError", "BudgetExceededError", "VerifierTimeoutError",
-    "RewardFileNotFoundError", "RewardFileEmptyError", "VerifierOutputParseError",
-    "AgentAuthenticationError", "ModelNotFoundError", "ApiProviderResourceNotFoundError",
-    "AuthenticationError", "PermissionDeniedError", "NotFoundError",
-    "ServiceOperationsUnsupportedError", "VercelScopeError", "DspyImportError",
-    "MissingExtraError", "RegradeError", "CancelledError", "NonZeroAgentExitCodeError",
-    "AgentTimeoutError", "ContextWindowExceededError", "OutputTokenExceededError",
-    "ContextLengthExceededError", "OutputLengthExceededError", "AgentSafetyRefusalError",
-    "ContentPolicyViolationError"))
-SUBAGENTS = frozenset(["conclave:" + a for a in (
-    "dependency-analyzer", "diagnostician", "executor", "mech-executor", "plan-verifier",
-    "researcher", "scout", "security-executor", "security-reviewer", "verifier")]
-    + ["general-purpose", "Explore", "Plan", "statusline-setup", "claude-code-guide"])
-MODELS = frozenset(("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"))
-NAME = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9_.-]{0,80}")
+EXCEPTIONS, SUBAGENTS = fixed_lists.EXCEPTIONS, fixed_lists.SUBAGENTS
+MODELS, NAME = fixed_lists.MODELS, fixed_lists.NAME
 USAGE_KEYS = {"inputTokens": "input", "outputTokens": "output",
               "cacheReadInputTokens": "cache_read", "cacheCreationInputTokens": "cache_creation"}
 RUNNER_KEYS = {"n_input_tokens": "input", "n_cache_tokens": "cache", "n_output_tokens": "output"}
@@ -450,7 +345,7 @@ def network_mode(path):
     except (TypeError, ValueError):
         return "unknown"
     mode = agent.get("network_mode", "public") if isinstance(agent, dict) else None
-    return mode if mode in ("allowlist", "public", "no-network") else "unknown"
+    return mode if mode in fixed_lists.NETWORKS else "unknown"
 
 
 def record_of(trial, job, arm, cap):
@@ -484,7 +379,7 @@ def record_of(trial, job, arm, cap):
     lines = lambda log: len((read(os.path.join(host, log)) or "").splitlines())
     n = lambda value: count(value, 10**6) if host_ok else None
     return {
-        "job": name(job), "arm": arm if arm in ("plain", "fleet") else None,
+        "job": name(job), "arm": arm if arm in fixed_lists.ARMS else None,
         "round": int(m.group(1)) if (m := re.fullmatch(r"[A-Za-z0-9._-]*-r([1-9])", job)) else None,
         "task": name(path.rstrip("/").rsplit("/", 1)[-1] if isinstance(path, str) else None),
         "trial": name(trial),
@@ -506,8 +401,8 @@ def record_of(trial, job, arm, cap):
             stat.S_ISREG(os.lstat(os.path.join(plans, p)).st_mode) for p in os.listdir(plans)),
         "model": model,
         "cli_version": version if isinstance(version, str)
-        and re.fullmatch(r"[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}", version) else None,
-        "fleet_version": plugin if plugin and re.fullmatch(r"[0-9a-f]{7,40}", plugin)
+        and fixed_lists.VERSION.fullmatch(version) else None,
+        "fleet_version": plugin if plugin and fixed_lists.FLEET.fullmatch(plugin)
         and not disguised(plugin) else None,
         "network": network_mode(path) if isinstance(path, str) else "unknown",
     }
@@ -526,7 +421,7 @@ def write_records(job, arm, cap):
     text = "".join(line + "\n" for line in lines)
     if disguised(text):
         print("records: not written (token-like text in a record)")
-        return 1
+        return 3
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
     with os.fdopen(os.open(os.path.join(job_dir, "records.jsonl"), flags, 0o644), "w",
                    encoding="ascii") as handle:
@@ -534,54 +429,53 @@ def write_records(job, arm, cap):
     return 0
 
 
-if not token:
-    sys.exit("empty token")
-if mode == "scan":
+def main():
+    # Module-level names: the functions above read job_dir, probe and token as globals.
+    global mode, job_dir, token_file, probe, token
+    mode, job_dir, token_file = sys.argv[1:4]
+    probe = os.environ.get("PROBE") == "1"
+    # Same checks as run_arm.sh, re-made on the open file: no symlink, no blocking, regular,
+    # ours, mode 600, one link, one token line.
+    token = None
     try:
-        sys.exit(scan())
-    except Exception as exc:
-        print(f"anomaly scan failed: {type(exc).__name__}")
-        sys.exit(4)
-if mode == "records":
-    try:
-        sys.exit(write_records(sys.argv[4], sys.argv[5], float(sys.argv[6]) + 1.00))
-    except Exception as exc:
-        print(f"records: not written ({type(exc).__name__})")
-        sys.exit(1)
-for trial in trials():
-    try:
-        summary_of(trial)
-    except Exception as exc:
-        # The type only: a message could carry container text.
-        print(f"summary failed for this trial: {type(exc).__name__}")
-if not trials():
-    print("no trial folders")
-PYEOF
-}
+        fd = os.open(token_file, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+        try:
+            st = os.fstat(fd)
+            if (stat.S_ISREG(st.st_mode) and st.st_uid == os.getuid()
+                    and stat.S_IMODE(st.st_mode) == 0o600 and st.st_nlink == 1
+                    and st.st_size <= 4096):
+                text = os.read(fd, 4096).decode("ascii")
+                if re.fullmatch(r"sk-ant-oat[A-Za-z0-9_-]+\n?", text):
+                    token = text.strip()
+        finally:
+            os.close(fd)
+    except (OSError, ValueError):
+        pass
+    if token is None:
+        sys.exit("report: token file refused")
+    if not token:
+        sys.exit("empty token")
+    if mode == "scan":
+        try:
+            sys.exit(scan())
+        except Exception as exc:
+            print(f"anomaly scan failed: {type(exc).__name__}")
+            sys.exit(4)
+    if mode == "records":
+        try:
+            sys.exit(write_records(sys.argv[4], sys.argv[5], float(sys.argv[6]) + 1.00))
+        except Exception as exc:
+            print(f"records: not written ({type(exc).__name__})")
+            sys.exit(1)
+    for trial in trials():
+        try:
+            summary_of(trial)
+        except Exception as exc:
+            # The type only: a message could carry container text.
+            print(f"summary failed for this trial: {type(exc).__name__}")
+    if not trials():
+        print("no trial folders")
 
-# 4. Token search first: names only, symlinks not followed, devices and FIFOs skipped. On a
-#    hit, nothing from the trial folders (names included) is printed.
-HITS=$(LC_ALL=C grep -rlF -D skip -f "$TOKEN_FILE" -- "$ROOT" 2>/dev/null)
-GREP_RC=$?
-if [ -n "$HITS" ]; then
-  echo "!!! TOKEN FOUND in $(printf '%s\n' "$HITS" | wc -l) file(s) under $ROOT. Launch nothing more."
-  echo "!!! List them yourself: grep -rlF -D skip -f \"\$TOKEN_FILE\" $ROOT"
-  exit 3
-elif [ "$GREP_RC" -ne 1 ]; then
-  echo "!!! Token search incomplete (grep exit $GREP_RC: unreadable entries); treated as found."
-  exit 3
-fi
-echo "token search: clean (literal value only; an encoded copy would not be found)"
 
-# 5. Trial-folder anomalies, before any summary reads them.
-report scan "$JOB_DIR" "$TOKEN_FILE"
-ANOMALY=$?
-
-# 6. Summary from the host-only copies and the result files.
-report summary "$JOB_DIR" "$TOKEN_FILE"
-
-# 7. One numeric record per trial (records.jsonl), only after a clean search and scan.
-[ "$ANOMALY" -eq 0 ] && report records "$JOB_DIR" "$TOKEN_FILE" "$JOB" "$ARM" "$BUDGET"
-
-[ "$ANOMALY" -eq 4 ] && exit 4
-exit "$RC"
+if __name__ == "__main__":
+    main()

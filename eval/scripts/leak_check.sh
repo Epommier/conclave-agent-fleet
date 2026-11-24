@@ -7,7 +7,7 @@
 # copies of the fixed code in installed packages, or test/solution folders baked
 # into the image.
 #
-# Usage: eval/leak_check.sh <image> <workdir-in-container> [<marker-file>]
+# Usage: eval/scripts/leak_check.sh <image> <workdir-in-container> [<marker-file>]
 #   <marker-file>  optional host text file, one distinctive line per row that the
 #                  reference fix ADDS (>= 25 chars, <= 10 lines). Mounted read-only.
 #

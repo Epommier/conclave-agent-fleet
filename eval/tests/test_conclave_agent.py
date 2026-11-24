@@ -1,4 +1,4 @@
-"""Run: PYTHONPATH=eval eval/.venv/bin/python -m unittest eval/test_conclave_agent.py"""
+"""Run: PYTHONPATH=eval/src eval/.venv/bin/python -m unittest eval/tests/test_conclave_agent.py"""
 
 import json
 import os
@@ -121,11 +121,11 @@ class Construction(unittest.TestCase):
         self.assertEqual(fleet.config_source, {"hooks": {"PreToolUse": [
             {"matcher": "AskUserQuestion", "hooks": [{"type": "command", "timeout": 30, "command":
              "CONCLAVE_EVAL=1 CONCLAVE_APPROVER_LOG=/logs/agent/approver.jsonl "
-             "python3 /opt/conclave/eval/approver.py"}]},
+             "python3 /opt/conclave/eval/hooks/approver.py"}]},
             {"matcher": "Write|Edit|Read", "hooks": [{"type": "command", "timeout": 10, "command":
              "CONCLAVE_EVAL=1 CONCLAVE_PLANS_DIR=/logs/agent/plans "
              "CONCLAVE_REDIRECT_LOG=/logs/agent/redirect.jsonl "
-             "python3 -I /opt/conclave/eval/redirect_plans.py"}]},
+             "python3 -I /opt/conclave/eval/hooks/redirect_plans.py"}]},
         ]}})
 
     def test_plugin_src_required_and_a_folder(self):

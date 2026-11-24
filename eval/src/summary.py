@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Compare the plain and fleet arms from their records.jsonl files.
 
-Usage: eval/summary.py <list.json> <out-dir> <job-folder>...
+Usage: eval/src/summary.py <list.json> <out-dir> <job-folder>...
 
 Records come from a less trusted source: each is validated again with the writer's rules
-(eval/run_arm.sh, record_of) and dropped when any field is outside them. Only validated
+(eval/src/report.py, record_of) and dropped when any field is outside them. Only validated
 fields and task names from the list reach the output files. Exit 0 written, 2 refused.
 """
 import json
@@ -17,32 +17,15 @@ import statistics
 import sys
 from datetime import date
 
-# Fixed lists copied from eval/run_arm.sh (records writer).
-EXCEPTIONS = frozenset((
-    "EnvironmentStartTimeoutError", "SandboxBuildFailedError", "AgentSetupTimeoutError",
-    "HealthcheckError", "SandboxLikelyOutOfMemoryError", "MemoryLimitExceededError",
-    "SSHAccessError", "GKEExecStreamClosedError", "GKEPodNotFoundError", "RuntimeRequestError",
-    "AddTestsDirError", "DownloadVerifierDirError", "ApiError", "ApiRateLimitError",
-    "ApiInternalServerError", "ApiOverloadedError", "ApiConnectionClosedError",
-    "ApiResponseStalledError", "UnknownApiError", "NetworkConnectionError", "ApiConnectionError",
-    "ApiUsageLimitError", "RateLimitError", "InternalServerError", "ServiceUnavailableError",
-    "APIConnectionError", "APIError", "Timeout", "UnsupportedModelParametersError",
-    "BadRequestError", "UnprocessableEntityError", "UnsupportedParamsError",
-    "APIResponseValidationError", "BudgetExceededError", "VerifierTimeoutError",
-    "RewardFileNotFoundError", "RewardFileEmptyError", "VerifierOutputParseError",
-    "AgentAuthenticationError", "ModelNotFoundError", "ApiProviderResourceNotFoundError",
-    "AuthenticationError", "PermissionDeniedError", "NotFoundError",
-    "ServiceOperationsUnsupportedError", "VercelScopeError", "DspyImportError",
-    "MissingExtraError", "RegradeError", "CancelledError", "NonZeroAgentExitCodeError",
-    "AgentTimeoutError", "ContextWindowExceededError", "OutputTokenExceededError",
-    "ContextLengthExceededError", "OutputLengthExceededError", "AgentSafetyRefusalError",
-    "ContentPolicyViolationError", "other"))
-SUBAGENTS = frozenset(["conclave:" + a for a in (
-    "dependency-analyzer", "diagnostician", "executor", "mech-executor", "plan-verifier",
-    "researcher", "scout", "security-executor", "security-reviewer", "verifier")]
-    + ["general-purpose", "Explore", "Plan", "statusline-setup", "claude-code-guide", "other"])
-MODELS = frozenset(("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "other"))
-NETWORKS = frozenset(("allowlist", "public", "no-network", "unknown"))
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+import fixed_lists
+
+# Fixed lists from eval/src/fixed_lists.py (shared with the records writer, report.py), plus the
+# writer's fallback values ("other" from pick, "unknown" from network_mode).
+EXCEPTIONS = fixed_lists.EXCEPTIONS | {"other"}
+SUBAGENTS = fixed_lists.SUBAGENTS | {"other"}
+MODELS = fixed_lists.MODELS | {"other"}
+NETWORKS = frozenset(fixed_lists.NETWORKS + ("unknown",))
 TOKEN_FIELDS = {"final_event_per_model": ("input", "output", "cache_read", "cache_creation"),
                 "runner_main_session": ("input", "cache", "output")}
 COUNTS = ("rate_limit_events", "auth_errors", "question_calls", "approver_lines", "anomalies")
@@ -51,12 +34,10 @@ KEYS = frozenset((
     "cli_version", "cost_source", "cost_usd", "dispatches", "exception", "fleet_version",
     "is_error", "job", "model", "network", "plan_saved", "question_calls", "rate_limit_events",
     "reward", "round", "task", "timed_out", "tokens", "tokens_source", "trial", "trial_seconds"))
-NAME = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9_.-]{0,80}")
+NAME, VERSION, FLEET = fixed_lists.NAME, fixed_lists.VERSION, fixed_lists.FLEET
 JOB = re.compile(r"cmp1-(plain|fleet)-r([1-9])")
-VERSION = re.compile(r"[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}")
-FLEET = re.compile(r"[0-9a-f]{7,40}")
 CAPS = {"plain": 1.00, "fleet": 2.50}  # the arms' CLI caps; a missing cost counts at cap + 1.00
-ARMS = ("plain", "fleet")
+ARMS = fixed_lists.ARMS
 MAX_BYTES = 20 * 1024 * 1024
 SEED, RESAMPLES = 20261120, 10000
 AGENT_LIMIT_SECONDS = 3000  # the agent time limit of every task in this task set

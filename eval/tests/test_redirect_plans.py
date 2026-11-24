@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 
-SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "redirect_plans.py")
+SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "hooks", "redirect_plans.py")
 
 
 class RedirectPlansTest(unittest.TestCase):

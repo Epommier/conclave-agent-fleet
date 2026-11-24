@@ -10,7 +10,7 @@ from contextlib import redirect_stderr, redirect_stdout
 
 sys.dont_write_bytecode = True  # -I ignores PYTHONDONTWRITEBYTECODE
 _spec = importlib.util.spec_from_file_location(
-    "summary", os.path.join(os.path.dirname(os.path.abspath(__file__)), "summary.py"))
+    "summary", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "summary.py"))
 summary = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(summary)
 
@@ -18,7 +18,7 @@ TASKS = ["task-a", "task-b"]
 
 
 def rec(job, task, reward=1, **changes):
-    """A valid record in the writer's shape (see eval/run_arm.sh, record_of)."""
+    """A valid record in the writer's shape (see eval/src/report.py, record_of)."""
     arm, rnd = summary.JOB.fullmatch(job).groups()
     r = {
         "agent_seconds": 100.0, "anomalies": 0, "approver_lines": 1 if arm == "fleet" else 0,

@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 
-SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "approver.py")
+SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "hooks", "approver.py")
 
 
 def q(text, labels, header="H", multi=None):
